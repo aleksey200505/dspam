@@ -2,7 +2,6 @@
 %bcond_without mysql
 %bcond_without postgresql
 %bcond_without sqlitedb
-%define ac_with_param ""
 
 Summary: anti-spam solution
 URL: http://dspam.nuclearelephant.org
@@ -39,6 +38,9 @@ Summary: Mysql driver for DSPAM
 Requires: %{name} = %{version}-%{release}
 %description mysql
 Mysql driver for DSPAM
+%define ac_with_mysql mysql_drv,
+%else
+%define ac_with_mysql ""
 %endif
 
 %if 0%{?with_postgresql}
@@ -49,6 +51,9 @@ Requires: %{name} = %{version}-%{release}
 Requires: postgresql-libs
 %description postgres
 Postgresql driver for DSPAM
+%define ac_with_postgresql pgsql_drv,
+%else
+%define ac_with_postgresql ""
 %endif
 
 %if 0%{?with_sqlitedb}
@@ -58,6 +63,9 @@ Summary: SQLite driver for DSPAM
 Requires:%{name} = %{version}-%{release}
 %description sqlite
 SQLite driver for DSPAM
+%define  ac_with_sqlitedb sqlite3_drv,
+%else
+%define  ac_with_sqlitedb ""
 %endif
 
 %package devel
@@ -68,19 +76,23 @@ Requires: dspam
 %description devel
 DSPAM resources for development, including headers.
 
+
+#with-storage-driver=mysql_drv,pgsql_drv,sqlite3_drv,hash_drv \
+
 %prep
 
 %setup -n %{name}-%{version}-ALPHA2
 
 %build
 umask 022
+
 CFLAGS="%{optflags}" CXXFLAGS="%{optflags}" \
   %configure --enable-daemon \
 	--enable-debug \
 	--enable-syslog \
 	--enable-virtual-users \
 	--enable-long-usernames \
-	--with-storage-driver=mysql_drv,pgsql_drv,sqlite3_drv,hash_drv \
+	--with-storage-driver=%{ac_with_mysql}%{ac_with_postgresql}%{ac_with_sqlitedb}hash_drv \
 %if 0%{?with_mysql}
 	--with-mysql-libraries=/usr/lib64/mysql \
 	--with-mysql-includes=/usr/include/mysql \
