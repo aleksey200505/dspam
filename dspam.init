@@ -1,0 +1,68 @@
+#!/bin/sh
+#
+# chkconfig: 2345 80 30
+# description: dspam daemon
+
+# Do not load RH compatibility interface.
+WITHOUT_RC_COMPAT=1
+
+# Source function library.
+. /etc/init.d/functions
+
+LOCKFILE=/var/lock/subsys/dspam
+PIDFILE=/var/run/dspam.pid
+RETVAL=0
+
+start()
+{
+	action "Starting dspam service: " start-stop-daemon --quiet --start -b --pidfile $PIDFILE --exec /usr/bin/dspam -- --daemon
+	RETVAL=$?
+	return $RETVAL
+}
+
+stop()
+{
+	action "Stopping dspam service: " start-stop-daemon --stop --quiet --pidfile $PIDFILE dspam
+	RETVAL=$?
+	return $RETVAL
+}
+
+restart()
+{
+	stop
+	sleep 1
+	start
+}
+
+# See how we were called.
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		restart
+		;;
+	condstop)
+		if [ -e "$LOCKFILE" ]; then
+			stop
+		fi
+		;;
+	condrestart)
+		if [ -e "$LOCKFILE" ]; then
+			restart
+		fi
+		;;
+	status)
+		#status dspam
+		status --pidfile "$PIDFILE" --expect-user root -- dspam
+		RETVAL=$?
+		;;
+	*)
+		echo "Usage: ${0##*/} {start|stop|reload|restart|condstop|condrestart|status}"
+		RETVAL=1
+esac
+
+exit $RETVAL
