@@ -1,9 +1,12 @@
 #!/bin/sh
 #
-# chkconfig: 2345 80 30
-# description: dspam daemon
+# Init file for Dspam system demon.
+#
+# chkconfig: - 99 05
+# description: Dspam filter server daemon
+#
+# processname: dspam
 
-# Do not load RH compatibility interface.
 WITHOUT_RC_COMPAT=1
 
 # Source function library.
@@ -12,19 +15,42 @@ WITHOUT_RC_COMPAT=1
 LOCKFILE=/var/lock/subsys/dspam
 PIDFILE=/var/run/dspam.pid
 RETVAL=0
+DSPAM_BIN=/usr/bin/dspam
+ARGS="--demon &> /dev/null"
+
+# Sanity checks.
+[ -x $DSPAM_BIN ] || exit 1
+
+# so we can rearrange this easily
+servicename=dspam
+pidfile=/var/run/dspam.pid
+
+RETVAL=0
 
 start()
 {
-	action "Starting dspam service: " start-stop-daemon --quiet --start -b --pidfile $PIDFILE --exec /usr/bin/dspam -- --daemon
+	echo $"Starting DSPAM daemon: "
+	daemon $servicename $ARGS --pid-file=$pidfile
 	RETVAL=$?
-	return $RETVAL
+	if [ $RETVAL -eq 0 ]; then
+	pidproc=$(ps -C $servicename -o pid=|sed 's/ //g')
+	if [ $pidproc ]; then
+	echo "$pidproc" > $pidfile
+	touch $lockfile
+        fi
+    fi
 }
 
 stop()
 {
-	action "Stopping dspam service: " start-stop-daemon --stop --quiet --pidfile $PIDFILE dspam
+	echo -n $"Stopping DSPAM daemon: "
+	killproc -p $pidfile $servicename
 	RETVAL=$?
-	return $RETVAL
+	echo
+	if [ $RETVAL -eq 0 ]; then
+		rm -f $lockfile
+		rm -f $pidfile
+	fi
 }
 
 restart()
@@ -34,7 +60,6 @@ restart()
 	start
 }
 
-# See how we were called.
 case "$1" in
 	start)
 		start
@@ -51,18 +76,18 @@ case "$1" in
 		fi
 		;;
 	condrestart)
-		if [ -e "$LOCKFILE" ]; then
-			restart
+		if [ -f $lockfile ]; then
+			stop
+			start
 		fi
 		;;
 	status)
-		#status dspam
-		status --pidfile "$PIDFILE" --expect-user root -- dspam
+		status $servicename
 		RETVAL=$?
 		;;
-	*)
-		echo "Usage: ${0##*/} {start|stop|reload|restart|condstop|condrestart|status}"
-		RETVAL=1
+		*)
+		echo $"Usage: $0 {start|stop|restart|condstop|condrestart|status}"
+		RETVAL=2
 esac
 
 exit $RETVAL
