@@ -1,9 +1,10 @@
 #=========== General info ===============
 %bcond_without mysql
 %bcond_without postgresql
-%bcond_without sqlitedb
+%bcond_without sqlite
+%bcond_without hash
 
-Summary: anti-spam solution
+Summary: Anti-spam solution
 URL: http://dspam.nuclearelephant.org
 Name: dspam
 Version: 3.9.0
@@ -56,16 +57,28 @@ Postgresql driver for DSPAM
 %define ac_with_postgresql ""
 %endif
 
-%if 0%{?with_sqlitedb}
+%if 0%{?with_sqlite}
 %package sqlite
 Group: Applications/Databases
 Summary: SQLite driver for DSPAM
 Requires:%{name} = %{version}-%{release}
 %description sqlite
 SQLite driver for DSPAM
-%define  ac_with_sqlitedb sqlite3_drv,
+%define ac_with_sqlite sqlite3_drv,
 %else
-%define  ac_with_sqlitedb ""
+%define ac_with_sqlite ""
+%endif
+
+%if 0%{?with_hash}
+%package hash
+Group: Applications/Databases
+Summary: Hash driver for DSPAM
+Requires: %{name} = %{version}-%{release}
+%description hash
+Hash driver for DSPAM
+%define ac_with_hash hash_drv,
+%else
+%define ac_with_hash ""
 %endif
 
 %package devel
@@ -75,9 +88,6 @@ Requires: dspam
 
 %description devel
 DSPAM resources for development, including headers.
-
-
-#with-storage-driver=mysql_drv,pgsql_drv,sqlite3_drv,hash_drv \
 
 %prep
 
@@ -92,7 +102,7 @@ CFLAGS="%{optflags}" CXXFLAGS="%{optflags}" \
 	--enable-syslog \
 	--enable-virtual-users \
 	--enable-long-usernames \
-	--with-storage-driver=%{ac_with_mysql}%{ac_with_postgresql}%{ac_with_sqlitedb}hash_drv \
+	--with-storage-driver=%{ac_with_mysql}%{ac_with_postgresql}%{ac_with_sqlite}%{ac_with_hash} \
 %if 0%{?with_mysql}
 	--with-mysql-libraries=/usr/lib64/mysql \
 	--with-mysql-includes=/usr/include/mysql \
@@ -107,19 +117,17 @@ make
 make DESTDIR=%{buildroot} install
 
 # let's try to get rid of rpath
-chrpath --delete %{buildroot}%{_bindir}/dspam
+chrpath --delete %{buildroot}%{_bindir}/%{name}
 
 #%{__mkdir_p} $RPM_BUILD_ROOT{%_sysconfdir,%{_initrddir},%_bindir,%_includedir/dspam,%_man_dir/man1,%_man_dir/man3,%_sh_man_dir/man1,%_sh_man_dir/man3}
 
 install -m 755 -d %{buildroot}%{_mandir}
 install -m 755 -d %{buildroot}%{_initrddir}
 install -m 755 %{_sourcedir}/dspam.init %{buildroot}%{_initrddir}/dspam
-install -m 644 %{buildroot}%{_sysconfdir}/dspam.conf %{buildroot}%{_sysconfdir}/dspam.conf.dist
 
 %post
 umask 022
-chkconfig --add dspam
-#chmod 755 %{_prefix}/share/doc/%{name}-%{version}
+chkconfig --add %{name}
 
 %clean
 %{__rm} -rf %{buildroot}
@@ -127,8 +135,7 @@ chkconfig --add dspam
 %files
 %defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/dspam.conf
-%{_sysconfdir}/dspam.conf.dist
-%{_initrddir}/dspam
+%{_initrddir}/%{name}
 %{_bindir}/dspam
 %{_bindir}/dspamc
 %{_bindir}/dspam_dump
@@ -142,11 +149,11 @@ chkconfig --add dspam
 %{_bindir}/dspam_train
 %{_bindir}/css*
 %{_libdir}/libdspam*
-%{_libdir}/%{name}/libhash*
+%{?with_hash: %exclude %{_libdir}/%{name}/libhash*}
 %{_libdir}/pkgconfig/dspam.pc
 %{_mandir}/man1/*
 %{_mandir}/man3/*
-%doc CHANGELOG LICENSE README RELEASE.NOTES UPGRADING doc/*
+%attr(0644, root, root) %doc CHANGELOG LICENSE README RELEASE.NOTES UPGRADING doc/*
 
 %if 0%{?with_mysql}
 %files mysql
@@ -161,17 +168,23 @@ chkconfig --add dspam
 %{_bindir}/dspam_pg2int8
 %endif
 
-%if 0%{?with_sqlitedb}
+%if 0%{?with_sqlite}
 %files sqlite
 %{_libdir}/%{name}/libsqlite*
 %doc src/tools.sqlite_drv/*sql
 %endif
 
+
+%if 0%{?with_hash}
+%files hash
+%{_libdir}/%{name}/libhash*
+%endif
+
 %files devel
-%{_includedir}/dspam/*
+%{_includedir}/%{name}/*
 
 %changelog
-* Thu Jun 25 2009 Popkov Aleksey <aleksey@psniip.ru> 3.9.0-1
+* Thu Jun 25 2009 Popkov Aleksey <aleksey@psniip.ru> 3.9.0-0.1
 - Start adapted spec file for Fedora and CentOs
 - Added of case self files to spec file.
 
