@@ -1,6 +1,8 @@
-%define _man_dir %{_prefix}/man
-%define _sh_man_dir %{_prefix}/share/man
-#%define _init_dir /etc/rc.d/init.d
+#=========== General info ===============
+%bcond_without mysql
+%bcond_without postgresql
+%bcond_without sqlitedb
+%define ac_with_param ""
 
 Summary: anti-spam solution
 URL: http://dspam.nuclearelephant.org
@@ -16,36 +18,47 @@ Source0: http://dspam.nuclearelephant.com/sources/%{name}-%{version}-ALPHA2.tar.
 Source1: dspam.init
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-ALPHA2-root
 Requires: openldap
-BuildRequires: gcc, sed, rpm >= 4, openldap-devel, mysql-devel, postgresql-devel sqlite-devel
+BuildRequires: gcc
+BuildRequires: sed
+BuildRequires: rpm >= 4
+BuildRequires: openldap-devel
+BuildRequires: mysql-devel
+BuildRequires: postgresql-devel
+BuildRequires: sqlite-devel
+BuildRequires: chrpath
 
 %description
 DSPAM is an open-source, freely available anti-spam solution
 designed to combat unsolicited commercial email using advanced
 statistical analysis.
 
+%if 0%{?with_mysql}
 %package mysql
-Group: System Environment/Daemons
+Group: Applications/Databases
 Summary: Mysql driver for DSPAM
-Requires: dspam,mysql
-
+Requires: %{name} = %{version}-%{release}
 %description mysql
 Mysql driver for DSPAM
+%endif
 
+%if 0%{?with_postgresql}
 %package postgres
-Group: System Environment/Daemons
+Group: Applications/Databases
 Summary: Postresql driver for DSPAM
-Requires: dspam,postgresql-libs
-
+Requires: %{name} = %{version}-%{release}
+Requires: postgresql-libs
 %description postgres
 Postgresql driver for DSPAM
+%endif
 
+%if 0%{?with_sqlitedb}
 %package sqlite
-Group: System Environment/Daemons
+Group: Applications/Databases
 Summary: SQLite driver for DSPAM
-Requires: dspam,sqlite
-
+Requires:%{name} = %{version}-%{release}
 %description sqlite
 SQLite driver for DSPAM
+%endif
 
 %package devel
 Group: Development/Libraries
@@ -68,22 +81,28 @@ CFLAGS="%{optflags}" CXXFLAGS="%{optflags}" \
 	--enable-virtual-users \
 	--enable-long-usernames \
 	--with-storage-driver=mysql_drv,pgsql_drv,sqlite3_drv,hash_drv \
-#	--with-mysql-libraries=/usr/lib/mysql \
-#	--with-mysql-includes=/usr/include/mysql \
+%if 0%{?with_mysql}
+	--with-mysql-libraries=/usr/lib64/mysql \
+	--with-mysql-includes=/usr/include/mysql \
+%endif
         --with-dspam-mode=6755 \
         --enable-preferences-extension
 
-make %{?_smp_mflags}
+make
+# %{?_smp_mflags}
 
 %install
 make DESTDIR=%{buildroot} install
 
+# let's try to get rid of rpath
+chrpath --delete %{buildroot}%{_bindir}/dspam
+
 #%{__mkdir_p} $RPM_BUILD_ROOT{%_sysconfdir,%{_initrddir},%_bindir,%_includedir/dspam,%_man_dir/man1,%_man_dir/man3,%_sh_man_dir/man1,%_sh_man_dir/man3}
 
-%{__install} -c %{_sourcedir}/dspam.init \
-        ${RPM_BUILD_ROOT}%{_initrddir}/dspam
-cp $RPM_BUILD_ROOT%{_sysconfdir}/dspam.conf \
-        $RPM_BUILD_ROOT%{_sysconfdir}/dspam.conf.dist
+install -m 755 -d %{buildroot}%{_mandir}
+install -m 755 -d %{buildroot}%{_initrddir}
+install -m 755 %{_sourcedir}/dspam.init %{buildroot}%{_initrddir}/dspam
+install -m 644 %{buildroot}%{_sysconfdir}/dspam.conf %{buildroot}%{_sysconfdir}/dspam.conf.dist
 
 %post
 umask 022
@@ -97,7 +116,7 @@ chkconfig --add dspam
 %defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/dspam.conf
 %{_sysconfdir}/dspam.conf.dist
-{_initrddir}/dspam
+%{_initrddir}/dspam
 %{_bindir}/dspam
 %{_bindir}/dspamc
 %{_bindir}/dspam_dump
@@ -111,29 +130,39 @@ chkconfig --add dspam
 %{_bindir}/dspam_train
 %{_bindir}/css*
 %{_libdir}/libdspam*
-%{_libdir}/libhash*
+%{_libdir}/%{name}/libhash*
 %{_libdir}/pkgconfig/dspam.pc
-%_man_dir/man1/*
-%_man_dir/man3/*
+%{_mandir}/man1/*
+%{_mandir}/man3/*
 %doc CHANGELOG LICENSE README RELEASE.NOTES UPGRADING doc/*
 
+%if 0%{?with_mysql}
 %files mysql
-%{_libdir}/libmysql*
+%{_libdir}/%{name}/libmysql*
 %doc src/tools.mysql_drv/*sql
+%endif
 
+%if 0%{?with_postgresql}
 %files postgres
-%{_libdir}/libpgsql*
+%{_libdir}/%{name}/libpgsql*
 %doc src/tools.pgsql_drv/*sql
 %{_bindir}/dspam_pg2int8
+%endif
 
+%if 0%{?with_sqlitedb}
 %files sqlite
-%{_libdir}/libsqlite*
+%{_libdir}/%{name}/libsqlite*
 %doc src/tools.sqlite_drv/*sql
+%endif
 
 %files devel
 %{_includedir}/dspam/*
 
 %changelog
+* Thu Jun 25 2009 Popkov Aleksey <aleksey@psniip.ru> 3.9.0-1
+- Start adapted spec file for Fedora and CentOs
+- Added of case self files to spec file.
+
 * Thu Aug 4 2006 Jacob Leaver <jleaver@c-corp.net> 3.6.8-2
 - Used make install with a basedir for the majority of instalation
 - Updated to 3.6.8
