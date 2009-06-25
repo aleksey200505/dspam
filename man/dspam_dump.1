@@ -1,0 +1,80 @@
+.\" $Id: dspam_dump.1,v 1.7 2008/05/06 21:29:07 mjohnson Exp $
+.\"  -*- nroff -*-
+.\"
+.\" dspam_dump3.8
+.\"
+.\" Authors:    Jonathan A. Zdziarski <jonathan@nuclearelephant.com>
+.\"
+.\" Copyright (c) 2002-2009 DSPAM Project
+.\" All rights reserved
+.\"
+.TH dspam_dump 1  "May 31, 2004" "DSPAM" "DSPAM"
+
+.SH NAME
+dspam_dump - produce a dump of a user's metadata
+
+.SH SYNOPSIS
+.na
+.B dspam_dump
+.BI username \fR
+[\c
+.BI \ token \fR
+]
+
+.ad
+.SH DESCRIPTION 
+.LP
+.B dspam_dump
+dumps a user's metadata dictionary to stdout. This can be used to view the
+entire contents of a user's dictionary, or used in combination with grep to view
+a subset of data. The output provides the token's stored value (in CRC64 
+format), the number of spam and nonspam hits, and the token's computed
+probability. 
+
+.SH OPTIONS
+.LP
+.ne 3
+.TP
+.BI \ username \fR\c
+The username of the user to dump. Only trusted users (or root) can use this
+program for the usernames different from the current one.
+ 
+.n3
+.TP
+.BI \ token \fR\c
+.br
+The text string of the token to search for and dump. If no token is specified,
+all tokens will be dumped to stdout.
+
+.SH EXAMPLES
+.B dspam_dump user "Subject*Viagra"
+
+Dumps the token Subject*Viagra, which represents the word Viagra in the Subject
+header, for the user specified.
+
+.SH EXIT VALUE
+.LP
+.ne 3
+.PD 0
+.TP
+.B 0
+Operation was successful.
+.ne 3
+.TP
+.B other
+Operation resulted in an error. 
+.PD
+
+.SH AUTHORS
+.LP
+
+Jonathan A. Zdziarski
+
+For more information, see http://dspam.sourceforge.net.
+
+.SH SEE ALSO
+.BR dspam (1),
+.BR dspam_stats (1),
+.BR dspam_train (1),
+.BR dspam_clean (1),
+.BR dspam_merge (1)
