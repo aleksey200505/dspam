@@ -8,23 +8,19 @@ Summary: Anti-spam solution
 URL: http://dspam.nuclearelephant.org
 Name: dspam
 Version: 3.9.0
-Release: 0.1
+Release: 0.1%{dist}
 License: GPLv2
 Provides: %{_bindir}/dspam
-Packager: Jacob Leaver <jleaver@c-corp.net>
 Vendor: C-Corp Centos
 Group: Applications/Internet
 Source0: http://dspam.nuclearelephant.com/sources/%{name}-%{version}-ALPHA2.tar.gz
-Source1: dspam.init
+#Source1: dspam.init
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-ALPHA2-root
 Requires: openldap
 BuildRequires: gcc
 BuildRequires: sed
 BuildRequires: rpm >= 4
 BuildRequires: openldap-devel
-BuildRequires: mysql-devel
-BuildRequires: postgresql-devel
-BuildRequires: sqlite-devel
 BuildRequires: chrpath
 
 %description
@@ -37,6 +33,7 @@ statistical analysis.
 Group: Applications/Databases
 Summary: Mysql driver for DSPAM
 Requires: %{name} = %{version}-%{release}
+BuildRequires: mysql-devel
 %description mysql
 Mysql driver for DSPAM
 %define ac_with_mysql mysql_drv,
@@ -50,6 +47,7 @@ Group: Applications/Databases
 Summary: Postresql driver for DSPAM
 Requires: %{name} = %{version}-%{release}
 Requires: postgresql-libs
+BuildRequires: postgresql-devel
 %description postgres
 Postgresql driver for DSPAM
 %define ac_with_postgresql pgsql_drv,
@@ -62,6 +60,8 @@ Postgresql driver for DSPAM
 Group: Applications/Databases
 Summary: SQLite driver for DSPAM
 Requires:%{name} = %{version}-%{release}
+Requires: sqlite-devel
+BuildRequires: sqlite-devel
 %description sqlite
 SQLite driver for DSPAM
 %define ac_with_sqlite sqlite3_drv,
@@ -76,7 +76,7 @@ Summary: Hash driver for DSPAM
 Requires: %{name} = %{version}-%{release}
 %description hash
 Hash driver for DSPAM
-%define ac_with_hash hash_drv,
+%define ac_with_hash hash_drv
 %else
 %define ac_with_hash ""
 %endif
@@ -85,9 +85,15 @@ Hash driver for DSPAM
 Group: Development/Libraries
 Summary: DPSAM resources for development
 Requires: dspam
-
 %description devel
 DSPAM resources for development, including headers.
+
+%package doc
+Group: Development/Libraries
+Summary: DPSAM documentation for uses
+Requires: dspam
+%description doc
+DPSAM documentation for uses.
 
 %prep
 
@@ -111,14 +117,13 @@ CFLAGS="%{optflags}" CXXFLAGS="%{optflags}" \
         --enable-preferences-extension
 
 make
-# %{?_smp_mflags}
 
 %install
 make DESTDIR=%{buildroot} install
 
 # let's try to get rid of rpath
-chrpath --delete %{buildroot}%{_bindir}/%{name}
-
+chrpath --delete %{buildroot}%{_bindir}/{dspam,dspam_stats,dspam_clean,dspam_2sql,dspam_dump,dspam_merge,dspam_crc,dspam_admin}
+chrpath --delete %{buildroot}%{_libdir}/dspam/{libhash_drv.so,libmysql_drv.so}
 #%{__mkdir_p} $RPM_BUILD_ROOT{%_sysconfdir,%{_initrddir},%_bindir,%_includedir/dspam,%_man_dir/man1,%_man_dir/man3,%_sh_man_dir/man1,%_sh_man_dir/man3}
 
 install -m 755 -d %{buildroot}%{_mandir}
@@ -126,15 +131,21 @@ install -m 755 -d %{buildroot}%{_initrddir}
 install -m 755 %{_sourcedir}/dspam.init %{buildroot}%{_initrddir}/dspam
 
 %post
-umask 022
-chkconfig --add %{name}
+/sbin/ldconfig
+/sbin/chkconfig --add dspam
+/sbin/chkconfig dspam off
+
+%postun -p /sbin/ldconfig
+
+%preun
+/sbin/chkconfig --del dspam
 
 %clean
 %{__rm} -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%config(noreplace) %{_sysconfdir}/dspam.conf
+%config(noreplace) %attr(0644,root,root) %{_sysconfdir}/dspam.conf
 %{_initrddir}/%{name}
 %{_bindir}/dspam
 %{_bindir}/dspamc
@@ -148,12 +159,14 @@ chkconfig --add %{name}
 %{_bindir}/dspam_logrotate
 %{_bindir}/dspam_train
 %{_bindir}/css*
-%{_libdir}/libdspam*
-%{?with_hash: %exclude %{_libdir}/%{name}/libhash*}
-%{_libdir}/pkgconfig/dspam.pc
 %{_mandir}/man1/*
 %{_mandir}/man3/*
-%attr(0644, root, root) %doc CHANGELOG LICENSE README RELEASE.NOTES UPGRADING doc/*
+%attr(-, root, root) %doc CHANGELOG LICENSE README RELEASE.NOTES UPGRADING
+
+%files doc
+%defattr(0644,root,root)
+#%attr(0755, root, root)
+%doc doc/*.txt
 
 %if 0%{?with_mysql}
 %files mysql
@@ -170,18 +183,21 @@ chkconfig --add %{name}
 
 %if 0%{?with_sqlite}
 %files sqlite
-%{_libdir}/%{name}/libsqlite*
+%{_libdir}/dspam/libsqlite*
+%exclude %{_libdir}/dspam/libsqlite*.a
 %doc src/tools.sqlite_drv/*sql
 %endif
-
 
 %if 0%{?with_hash}
 %files hash
 %{_libdir}/%{name}/libhash*
+%exclude %{_libdir}/dspam/libhash*.a
 %endif
 
 %files devel
-%{_includedir}/%{name}/*
+%{_includedir}/dspam/*
+%{_libdir}/libdspam*
+%{_libdir}/pkgconfig/dspam.pc
 
 %changelog
 * Thu Jun 25 2009 Popkov Aleksey <aleksey@psniip.ru> 3.9.0-0.1
